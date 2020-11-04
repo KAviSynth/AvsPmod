@@ -10,7 +10,7 @@ import wx
 import MP3Info
 
 class CompressVideoDialog(wx.Dialog):
-    def __init__(self, parent, inputname='', framecount=None, framerate=None):
+    def __init__(self, parent, inputname='', framecount=None, framerate=None, framewidth=None, frameheight=None):
         wx.Dialog.__init__(self, parent, wx.ID_ANY, _('Encode video'))
         self.inputname = inputname
         if not inputname:
@@ -19,6 +19,8 @@ class CompressVideoDialog(wx.Dialog):
             self.inputname = parent.MakePreviewScriptFile(parent.currentScript)
         self.framecount = framecount
         self.framerate = framerate
+        self.framewidth = framewidth
+        self.frameheight = frameheight
         self.windowTextColor = wx.SystemSettings.GetColour(wx.SYS_COLOUR_WINDOWTEXT)
         self.LoadOptions()
         self.LoadPresets()
@@ -29,7 +31,7 @@ class CompressVideoDialog(wx.Dialog):
 
     def LoadOptions(self):
         self.options = {}
-        self.optionsFilename = os.path.join(self.GetParent().toolsfolder, 
+        self.optionsFilename = os.path.join(self.GetParent().toolsfolder,
                                             __name__ + '.dat')
         if os.path.isfile(self.optionsFilename):
             f = open(self.optionsFilename, mode='rb')
@@ -110,8 +112,10 @@ class CompressVideoDialog(wx.Dialog):
         button = wx.Button(self, wx.ID_ANY, _('calculate'))
         self.Bind(wx.EVT_BUTTON, self.OnButtonCalculate, button)
         self.ctrlDict['video_bitrate'] = textCtrl
-        self.ctrlDict['x264'] = (_('Quality CRF (0-51):'), 23, 0, 51)
+        self.ctrlDict['x264'] = (_('Quality CRF (0-51):'), 21, 0, 51)
+        self.ctrlDict['x265'] = (_('Quality CRF (0-51):'), 21, 0, 51)
         self.ctrlDict['xvid'] = (_('Quality CQ (1-31):'), 4, 1, 31)
+        self.ctrlDict['ffmpeg'] = (_('Quality CRF (0-51):'), 21, 0, 51)
         staticTextQty = wx.StaticText(self, wx.ID_ANY, self.ctrlDict['x264'][0], style=wx.ALIGN_RIGHT|wx.ST_NO_AUTORESIZE)
         self.ctrlDict['quality_label'] = staticTextQty
         spinCtrlQty = wx.SpinCtrl(self, size=(50,-1), style=wx.SP_ARROW_KEYS|wx.ALIGN_CENTRE)
@@ -188,21 +192,26 @@ class CompressVideoDialog(wx.Dialog):
         menuInfo = (
             (_('compute from .d2v'), None, None),
             (''),
-            ('PC', 1, 1),
+            ('Square', 1, 1),
             (''),
-            ('PAL 4:3', 59, 54),
-            ('PAL 16:9', 118, 81),
-            ('PAL VCD', 59, 54),
+            ('DAR 4:3', 4.0, 3000.0),
+            ('DAR 16:9', 16.0, 9000.0),
+            ('DAR 2.35', 2.35, 1000.0),
+            ('DAR 14:9', 14.0, 9000.0),
+            (''),
+            ('PAL DV 4:3', 59, 54),
+            ('PAL DV 16:9', 118, 81),
             ('PAL SVCD 4:3', 59, 36),
             ('PAL SVCD 16:9', 59, 27),
             ('PAL SVCD 2.21:1', '2.7123', 1),
             (''),
-            ('NTSC 4:3', 10, 11),
-            ('NTSC 16:9', 40, 33),
-            ('NTSC VCD', 10, 11),
+            ('NTSC DV 4:3', 10, 11),
+            ('NTSC DV 16:9', 40, 33),
             ('NTSC SVCD 4:3', 15, 11),
             ('NTSC SVCD 16:9', 20, 11),
             ('NTSC SVCD 2.21:1', '2.2602', 1),
+            (''),
+
         )
         self.par_menu = wx.Menu()
         for i, eachMenuInfo in enumerate(menuInfo):
@@ -214,10 +223,18 @@ class CompressVideoDialog(wx.Dialog):
                 if par_x is None:
                     handler = lambda event: self.ComputePARfromD2V()
                 else:
+                    if par_y >= 1000:   # GPo, frame AR to DAR e.g. (PAL TV-SD 720x576 to DAR 16:9)
+                        try:
+                            x = (par_x/(par_y/1000.0)) / (self.framewidth/float(self.frameheight))
+                            par_x = "%.4f" % x
+                        except:
+                            par_x = 1
+                        par_y = 1
                     label = '%s - %s:%s' % (label, par_x, par_y)
                     handler = self.OnMenuPixelAspectRatio
                 menuItem = self.par_menu.Append(wx.ID_ANY, label, '')
                 self.Bind(wx.EVT_MENU, handler, menuItem)
+
 
     def ComputePARfromD2V(self):
         par_x = par_y = ''
@@ -261,7 +278,7 @@ class CompressVideoDialog(wx.Dialog):
         self.ctrlDict['quality_label'].SetLabel(label)
         self.ctrlDict['video_quality'].SetValue(initial)
         self.ctrlDict['video_quality'].SetRange(_min, _max)
-        self.ctrlDict['video_bitrate'].SetValue('1000')
+        self.ctrlDict['video_bitrate'].SetValue('5000')
         self.ctrlDict['credits_frame'].SetValue(str(self.framecount-1))
         self.ctrlDict['par_x'].SetValue('1')
         self.ctrlDict['par_y'].SetValue('1')
@@ -271,6 +288,7 @@ class CompressVideoDialog(wx.Dialog):
         boolAutoBitrate = self.options.setdefault('auto_bitrate', True)
         if bitrate is not None and boolAudio and boolAutoBitrate:
             self.ctrlDict['video_bitrate'].Replace(0, -1, '%i' % bitrate)
+
         if self.options.setdefault('auto_par_d2v', False):
             self.ComputePARfromD2V()
         commandline = self.ComputeCommandLine()
@@ -279,6 +297,7 @@ class CompressVideoDialog(wx.Dialog):
         self.options.setdefault('priority', 'belownormal')
         self.options.setdefault('credits_warning', 10)
         self.options.setdefault('append_comments', False)
+        self.options.setdefault('add_output_newtab', False)
         self.options.setdefault('exe_options', {})
 
     def SetDefaultValuesBitrateCalc(self):
@@ -345,6 +364,7 @@ class CompressVideoDialog(wx.Dialog):
         # Get the appropriate preset from self.presets
         try:
             commandline = self.presets[self.ctrlDict['preset'].GetStringSelection()]
+            tempcommandline = commandline
         except KeyError:
             self.ctrlDict['commandline'].SetValue('')
             return ''
@@ -395,8 +415,21 @@ class CompressVideoDialog(wx.Dialog):
                 pass
             if value != '':
                 replaceDict[key] = value
+
         # Compute additional values
         replaceDict['last_frame'] = self.framecount - 1
+
+        # GPo, fix for ffmpeg
+        raw_commandline = self.presets[self.ctrlDict['preset'].GetStringSelection()]
+        if raw_commandline.count('$video_bitrate_k') != 0:
+            replaceDict['video_bitrate_k'] = str(self.ctrlDict['video_bitrate'].GetValue()) + 'k'
+        """
+        if raw_commandline.count('$dar_y') != 0:
+            replaceDict['dar_y'] = self.ctrlDict['par_y'].GetValue()
+        if raw_commandline.count('$dar_x') != 0:
+            replaceDict['dar_x'] = self.ctrlDict['par_x'].GetValue()
+        """
+
         audioname = self.bitrateDialog.ctrlDict['audio_input'].GetValue()
         try:
             replaceDict['audio_delay'] = audioname.lower().split('delay',1)[1].split('ms')[0].strip()
@@ -414,7 +447,9 @@ class CompressVideoDialog(wx.Dialog):
 
     def SetValidControls(self):
         raw_commandline = self.presets[self.ctrlDict['preset'].GetStringSelection()]
-        for key in ('video_bitrate', 'video_quality', 'credits_frame', 'par_x', 'par_y', 'video_input', 'video_output'):
+        for key in ('video_bitrate', 'video_bitrate_k','video_quality', 'credits_frame', 'par_x', 'par_y', 'video_input', 'video_output'):
+            if key == 'video_bitrate_k':  # GPo, fix for ffmpeg
+                key = 'video_bitrate'
             if raw_commandline.count('$'+key) == 0:
                 self.ctrlDict[key].Disable()
             else:
@@ -439,7 +474,7 @@ class CompressVideoDialog(wx.Dialog):
                     continue
                 elif os.name == 'nt':
                     try:
-                        path = subprocess.check_output('for %i in ({0}) do @echo. %~$PATH:i'.format(key), 
+                        path = subprocess.check_output('for %i in ({0}) do @echo. %~$PATH:i'.format(key),
                                                        shell=True).strip().splitlines()[0]
                         if os.path.isfile(path) or os.path.isfile(path + '.exe'):
                             value['path'] = path
@@ -610,13 +645,13 @@ class CompressVideoDialog(wx.Dialog):
                 key = s2[0].lower()
                 if key.endswith('.exe'):
                     key = key[:-4]
-                args = s2[1].replace('NUL ', '/dev/null ')  
+                args = s2[1].replace('NUL ', '/dev/null ')
                 lines.append('"%s" %s\n%s' % (key, args, ret))
         if unknownPathKeys != []:
             wx.MessageBox(_('Unknown exe paths!'), _('Error'), style=wx.OK|wx.ICON_ERROR)
             return
         else:
-            batchname = os.path.join(self.GetParent().toolsfolder, 
+            batchname = os.path.join(self.GetParent().toolsfolder,
                                      'encode' + ('.bat' if os.name == 'nt' else '.sh'))
             f = open(batchname, 'w')
             for line in lines:
@@ -624,18 +659,41 @@ class CompressVideoDialog(wx.Dialog):
                     line = line.encode(sys.getfilesystemencoding())
                 f.write(line)
             f.close()
+
+            # GPo 2020, make output dir if not exists
+            path = self.ctrlDict['video_output'].GetValue()
+            if commandline.find(path) > -1:
+                dirname = os.path.split(path)[0]
+                if dirname and not os.path.isdir(dirname):
+                    try:
+                        os.mkdir(dirname)
+                        recentdir = dirname
+                    except:
+                        pass
+            else:
+                dlg = wx.MessageDialog(self,'Output filename in commandline and edit field different\n' +\
+                                            'Cannot create the directory if it not exists', 'Information',\
+                                             wx.OK|wx.CANCEL)
+                ID = dlg.ShowModal()
+                dlg.Destroy()
+                if ID != wx.ID_OK:
+                   return
+
             if self.options['append_comments']:
                 avsname = self.ctrlDict['video_input'].GetValue()
                 if os.path.isfile(avsname) and os.path.splitext(avsname)[1] == '.avs':
-                    #~ f = open(avsname, 'a')
-                    #~ f.write('\n\n')
-                    #~ for line in lines:
-                        #~ f.write('#~ %s' % line)
-                    #~ f.close()
-                    avsp.InsertText('\n\n')
+                    s = '\n\n'
                     for line in lines:
-                        avsp.InsertText('#~ %s' % line)
-                    avsp.SaveScript(avsname)
+                        s += '#~ %s\n' % line
+                    avsp.InsertText(s)
+                    #~avsp.SaveScript(avsname)
+
+            if self.options['add_output_newtab']:
+                s = avsp.GetSourceStringFromFilename(self.ctrlDict['video_output'].GetValue())
+                if s:
+                   avsp.NewTab(copyselected=False)
+                   avsp.InsertText(s)
+
             #~ os.startfile(batchname)
             if os.name == 'nt':
                 os.system('start "AvsP encoding" "%s"' % batchname.encode(sys.getfilesystemencoding()))
@@ -720,9 +778,12 @@ class CompressVideoOptionsDialog(wx.Dialog):
         checkBox1.SetValue(self.options['auto_par_d2v'])
         checkBox2 = wx.CheckBox(tabPanel, wx.ID_ANY, _('Append batch commands to the avs script as comments'))
         checkBox2.SetValue(self.options['append_comments'])
+        checkBox3 = wx.CheckBox(tabPanel, wx.ID_ANY, _('Add output file to new tab'))
+        checkBox3.SetValue(self.options['add_output_newtab'])
         self.ctrlDict['auto_bitrate'] = checkBox0
         self.ctrlDict['auto_par_d2v'] = checkBox1
         self.ctrlDict['append_comments'] = checkBox2
+        self.ctrlDict['add_output_newtab'] = checkBox3
         gridSizer2 = wx.FlexGridSizer(cols=2, hgap=5, vgap=5)
         staticText = wx.StaticText(tabPanel, wx.ID_ANY, _('Encoder priority:'))
         textCtrl = wx.Choice(tabPanel, wx.ID_ANY, choices=('low', 'normal', 'high', 'realtime', 'abovenormal', 'belownormal'))
@@ -735,6 +796,7 @@ class CompressVideoOptionsDialog(wx.Dialog):
         tabSizer.Add(checkBox0, 0, wx.EXPAND|wx.ALL, 5)
         tabSizer.Add(checkBox1, 0, wx.EXPAND|wx.ALL, 5)
         tabSizer.Add(checkBox2, 0, wx.EXPAND|wx.ALL, 5)
+        tabSizer.Add(checkBox3, 0, wx.EXPAND|wx.ALL, 5)
         tabSizer.Add((-1,-1), 0, wx.EXPAND|wx.ALL, 5)
         tabSizer.Add(gridSizer, 0, wx.EXPAND|wx.ALL, 5)
         tabSizer.Add((-1,-1), 0, wx.EXPAND|wx.ALL, 5)
@@ -802,6 +864,7 @@ class CompressVideoOptionsDialog(wx.Dialog):
         self.options['auto_bitrate'] = self.ctrlDict['auto_bitrate'].GetValue()
         self.options['auto_par_d2v'] = self.ctrlDict['auto_par_d2v'].GetValue()
         self.options['append_comments'] = self.ctrlDict['append_comments'].GetValue()
+        self.options['add_output_newtab'] = self.ctrlDict['add_output_newtab'].GetValue()
         for key in self.options['exe_options'].keys():
             self.options['exe_options'][key]['path'] = self.ctrlDict[key][0].GetValue()
             self.options['exe_options'][key]['extra'] = self.ctrlDict[key][1].GetValue()
@@ -1147,5 +1210,8 @@ def avsp_run():
         avsp.SaveScript()
     framecount = avsp.GetVideoFramecount()
     framerate = avsp.GetVideoFramerate()
-    dlg = CompressVideoDialog(avsp.GetWindow(), inputname, framecount, framerate)
+    framewidth = avsp.GetVideoWidth()
+    frameheight = avsp.GetVideoHeight()
+
+    dlg = CompressVideoDialog(avsp.GetWindow(), inputname, framecount, framerate, framewidth, frameheight)
     dlg.Show()
