@@ -12,6 +12,63 @@ GPo source: https://github.com/gispos/AvsPmod
 GPo releases: https://github.com/gispos/AvsPmod/releases
 
 --------------------------
+Version 2.6.4.8 [2020-11-11] GPo
+--------------------------
+* Some improvments to zoom setting 'Antialiasing' and the program interface
+-- scroll bars movement as fast as without antialiasing
+-- revised zoom 'Window fill'
+-- a few other changes
+
+--------------------------
+Version 2.6.4.7 [2020-11-10] GPo
+--------------------------
+Again bug fixes caused by the new zoom function 'Antialiasing'
+
+--------------------------
+Version 2.6.4.6 [2020-11-10] GPo
+--------------------------
+Bug fixes caused by the new zoom function 'Antialiasing'.
+
+--------------------------
+Version 2.6.4.5 [2020-11-08] GPo
+--------------------------
+* Fixed zoom settings with keyboard
+* Fixed zoom setting 'Antialiasing' cannot be disabled with key shortcut
+
+--------------------------
+Version 2.6.4.4 [2020-11-08] GPo
+--------------------------
+** If there are any problems, it's a test version, if not, it's a regular one ;)
+* New menu Video > Zoom > 'Antialiasing', draws the preview antialiased (bilinear) if the zoom is not equal to 100%
+-- drawing requires more power, I have done a lot that the preview does not jerk with mouse movements or playback. 
+-- but when the scroll bars are moved manually you can feel the difference.
+-- It will be temporarily deactivated during playback or if crop editor shown and on some other events. 
+-- check it out, I don't know if it works on all systems without errors. 
+-- And I don't know yet whether it will be kept. It took a lot of effort to implement it and if it causes bigger problems then I throw it out.
+* New Options > Video > 'Startup with last zoom settings'
+* Small other (fixes) changes
+
+--------------------------
+Version 2.6.4.3 [2020-11-01] GPo
+--------------------------
+* 'New tab from snapshot' now sets the current frame number (if possible)
+* Get pixel info from avisynth now disabled if snapshot visible
+* Fixed 'Copy to new tab' not copying the tab bookmarks
+
+--------------------------
+Version 2.6.4.2 [2020-10-31] GPo
+--------------------------
+* New Menu 'Video > Snapshot': Intended for resource-saving comparison of simple settings (sharpness, color, etc.)
+-- 'Take snapshot' stores a bitmap from the current frame (tab related)
+-- 'Show/hide snapshot',  if the snapshot frame number and current frame number different, you must hit again 'Show/hide snapshot'.
+-- At the top left the video window shows which snapshot is displayed.
+-- Use shortcuts so that you can easily take, show or hide the snapshot.
+-- Snapshot hides only automatically if the frame number changed or crop editor is shown (at the moment)
+-- Further menus: Clear tab snapshot, Clear all snapshots Globally, New tab (script) from snapshot
+* Tab bookmarks now saves the bookmark titles
+* Added 'Bookmarks > Titled bookmarks > Remove all title', removes all titles from the current tab bookmarks
+ 
+--------------------------
 Version 2.6.4.1 [2020-10-16] GPo
 --------------------------
 * New item in Bookmarks menu 'Clear tab bookmarks' clears only the current tab bookmarks (idea by real.finder)
